@@ -1,0 +1,16 @@
+.{
+    .name = .software_rasterizer,
+    .version = "0.16.0",
+    .dependencies = .{
+        .sdl3 = .{
+            .url = "git+https://codeberg.org/7Games/zig-sdl3?ref=v0.2.2#83c694024f23cbacfa36fcd8fca1c57d4957203e",
+            .hash = "sdl3-0.2.2-NmT1Q-2jKQBa4uSXUwuVwdmXpXe-eYwim7Wkyx531v6O",
+        },
+        .pixel_utils = .{
+            .url = "git+https://github.com/makstempnick/pixel_utils?ref=main#5829302d599fc238caa85cb4860115352a5b7385",
+            .hash = "pixel_utils-0.0.1-89t-odIfAAB3TM_DjUOdtHGLrRUS73bi-8KGlO9VlQYS",
+        },
+    },
+    .paths = .{""},
+    .fingerprint = 0x238c883eb9050022,
+}
