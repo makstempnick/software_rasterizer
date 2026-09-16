@@ -8,19 +8,22 @@ pub fn build(b: *std.Build) void {
     };
 
     for (targets) |target| {
-        const main_exe = b.addExecutable(.{ .name = "software_rasterizer", .root_module = b.createModule(.{
+        const exe = b.addExecutable(.{ .name = "software_rasterizer", .root_module = b.createModule(.{
             .root_source_file = b.path("src/main.zig"),
             .optimize = optimize,
             .target = target,
         }) });
 
-        b.installArtifact(main_exe);
+        b.installArtifact(exe);
 
         const sdl_dep = b.dependency("sdl3", .{ .optimize = optimize, .target = target, .ext_image = true });
-        main_exe.root_module.addImport("sdl", sdl_dep.module("sdl3"));
+        exe.root_module.addImport("sdl", sdl_dep.module("sdl3"));
 
-        const utils_dep = b.dependency("pixel_utils", .{ .optimize = optimize, .target = target });
-        main_exe.root_module.addImport("utils", utils_dep.module("pixel_utils"));
+        const utils_dep = b.dependency("pixel_utils", .{ .optimize = optimize });
+        exe.root_module.addImport("utils", utils_dep.module("pixel_utils"));
+
+        const zmath_dep = b.dependency("zmath", .{ .optimize = optimize });
+        exe.root_module.addImport("zm", zmath_dep.module("root"));
 
         if (target.query.os_tag == b.graph.host.query.os_tag) {
             const tests = b.addTest(.{ .name = "tests", .root_module = b.createModule(.{
@@ -29,7 +32,9 @@ pub fn build(b: *std.Build) void {
                 .target = target,
             }) });
 
-            const run_arti = b.addRunArtifact(main_exe);
+            tests.root_module.addImport("zm", zmath_dep.module("root"));
+
+            const run_arti = b.addRunArtifact(exe);
             const run_step = b.step("run", "Run the executable");
             run_step.dependOn(&run_arti.step);
 
