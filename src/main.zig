@@ -13,5 +13,5 @@ pub fn main() !void {
         _ = allocator.deinit();
     }
 
-    try app.start();
+    try app.start(gpa);
 }
