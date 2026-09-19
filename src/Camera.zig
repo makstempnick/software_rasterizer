@@ -92,7 +92,7 @@ pub fn rotate(self: *Self, input: *Input, dt: f32) void {
 
     self.rot = zm.quatFromRollPitchYawV(euler);
 }
-pub fn worldToScreen(self: *Self, aspect: f32, pos: Vec) Vec {
+pub fn localProjVec(self: *Self, aspect: f32, pos: Vec) Vec {
     const view_mat = self.getViewMat();
     const clip_mat = self.getClipMat(aspect);
 
@@ -101,7 +101,7 @@ pub fn worldToScreen(self: *Self, aspect: f32, pos: Vec) Vec {
 
     return pos_to_clip;
 }
-pub fn localCamProj(self: *Self, aspect: f32, obj_mat: Mat) Mat {
+pub fn localProjMat(self: *Self, aspect: f32, obj_mat: Mat) Mat {
     const view_mat = self.getViewMat();
     const clip_mat = self.getClipMat(aspect);
 

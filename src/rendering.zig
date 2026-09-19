@@ -1,4 +1,5 @@
 const std = @import("std");
+const zm = @import("zm");
 
 const App = @import("App.zig");
 const Thread = std.Thread;
@@ -6,16 +7,21 @@ const Triangle = @import("Triangle.zig");
 const Mesh = @import("Mesh.zig");
 
 pub fn renderTriangle(app: *App, triangle: *Triangle) void {
-    std.debug.print("\n\n\n", .{});
-    for (0..3) |i| {
-        const pos_0 = triangle.vertices[i];
-        const pos_1 = if (i < 2)
-            triangle.vertices[i + 1]
-        else
-            triangle.vertices[0];
+    const projected = triangle.localCamProj(app.render_aspect, &app.camera);
 
-        const proj_0 = app.camera.worldToScreen(app.render_aspect, pos_0);
-        const proj_1 = app.camera.worldToScreen(app.render_aspect, pos_1);
+    const pos_diff = app.camera.pos - triangle.getMiddle();
+
+    const dot = zm.dot3(pos_diff, triangle.getNormal());
+
+    if (dot[0] < 0)
+        return;
+
+    for (0..3) |i| {
+        const proj_0 = projected.vertices[i];
+        const proj_1 = if (i < 2)
+            projected.vertices[i + 1]
+        else
+            projected.vertices[0];
 
         const proj_x0 = (proj_0[0] / proj_0[2] + 1) / 2;
         const proj_y0 = (proj_0[1] / proj_0[2] + 1) / 2;
@@ -29,11 +35,8 @@ pub fn renderTriangle(app: *App, triangle: *Triangle) void {
         const screen_x1: i32 = @trunc((@as(f32, @floatFromInt(app.render_buffer.width)) * proj_x1));
         const screen_y1: i32 = @trunc(@as(f32, @floatFromInt(app.render_buffer.height)) - (@as(f32, @floatFromInt(app.render_buffer.height)) * proj_y1));
 
-        std.debug.print("now: {}:{} and {}:{}\n", .{ screen_x0, screen_y0, screen_x1, screen_y1 });
-
         drawLine(app, screen_x0, screen_y0, screen_x1, screen_y1);
     }
-    std.debug.print("\n\n\n", .{});
 }
 pub fn drawLine(app: *App, x0: i32, y0: i32, x1: i32, y1: i32) void {
     if (@abs(x1 - x0) > @abs(y1 - y0)) {

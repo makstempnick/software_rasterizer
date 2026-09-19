@@ -50,7 +50,7 @@ pub fn init(gpa: Allocator) !Self {
 
     try sdl.init(init_flags);
 
-    const window = try Window.init("3d_raycasting_engine", 600, 600, .{});
+    const window = try Window.init("software_rasterizer", 600, 600, .{});
     const win_size = try window.getSize();
     const win_width = win_size[0];
     const win_height = win_size[1];
@@ -78,7 +78,7 @@ pub fn init(gpa: Allocator) !Self {
 
     const cam_pos = f32x4(0, 0, 0, 1);
     const cam_rot = zm.quatFromMat(zm.lookToLh(cam_pos, math.forward, math.up));
-    const camera = Camera.init(cam_pos, cam_rot, math.quart_rot, f32x4s(5), f32x4s(1));
+    const camera = Camera.init(cam_pos, cam_rot, math.quart_rot, f32x4s(6), f32x4s(1));
 
     const meshes = std.ArrayList(Mesh).empty;
     const models = std.ArrayList(Model).empty;
@@ -151,56 +151,56 @@ fn createMeshes(self: *Self, gpa: Allocator) !void {
         f32x4(0, 0, 14, 1),
         f32x4(0, 4, 14, 1),
         f32x4(4, 0, 14, 1),
-    });
+    }).getFlipped();
     triangles[3] = Triangle.init(.{
         f32x4(0, 4, 14, 1),
         f32x4(4, 4, 14, 1),
         f32x4(4, 0, 14, 1),
-    });
+    }).getFlipped();
 
     triangles[4] = Triangle.init(.{
         f32x4(0, 0, 10, 1),
-        f32x4(0, 4, 10, 1),
         f32x4(0, 0, 14, 1),
+        f32x4(0, 4, 14, 1),
     });
     triangles[5] = Triangle.init(.{
-        f32x4(0, 4, 10, 1),
         f32x4(0, 4, 14, 1),
-        f32x4(0, 0, 14, 1),
+        f32x4(0, 4, 10, 1),
+        f32x4(0, 0, 10, 1),
     });
 
     triangles[6] = Triangle.init(.{
         f32x4(4, 0, 10, 1),
-        f32x4(4, 4, 10, 1),
         f32x4(4, 0, 14, 1),
-    });
-    triangles[7] = Triangle.init(.{
-        f32x4(4, 4, 10, 1),
         f32x4(4, 4, 14, 1),
-        f32x4(4, 0, 14, 1),
-    });
+    }).getFlipped();
+    triangles[7] = Triangle.init(.{
+        f32x4(4, 4, 14, 1),
+        f32x4(4, 4, 10, 1),
+        f32x4(4, 0, 10, 1),
+    }).getFlipped();
 
     triangles[8] = Triangle.init(.{
-        f32x4(0, 0, 10, 1),
         f32x4(0, 0, 14, 1),
+        f32x4(0, 0, 10, 1),
         f32x4(4, 0, 10, 1),
     });
     triangles[9] = Triangle.init(.{
+        f32x4(0, 0, 14, 1),
         f32x4(4, 0, 10, 1),
         f32x4(4, 0, 14, 1),
-        f32x4(0, 0, 14, 1),
     });
 
     triangles[10] = Triangle.init(.{
-        f32x4(0, 4, 10, 1),
         f32x4(0, 4, 14, 1),
+        f32x4(0, 4, 10, 1),
         f32x4(4, 4, 10, 1),
-    });
+    }).getFlipped();
     triangles[11] = Triangle.init(.{
+        f32x4(0, 4, 14, 1),
         f32x4(4, 4, 10, 1),
         f32x4(4, 4, 14, 1),
-        f32x4(0, 4, 14, 1),
-    });
+    }).getFlipped();
 
     const mesh = Mesh.init(triangles);
     try self.meshes.append(gpa, mesh);
@@ -223,14 +223,8 @@ fn gameLoop(self: *Self) void {
             for (mesh.triangles) |*triangle|
                 rendering.renderTriangle(self, triangle);
 
-        // rendering.drawLine(self, 0, 0, 75, 100);
-
         rendering.display(self) catch
             std.debug.print("cant display!!!!!!!!!", .{});
-
-        std.debug.print("{any}\n", .{self.camera.pos});
-        // std.debug.print("euler: {any}\n", .{zm.quatToRollPitchYaw(self.camera.rot)});
-        // std.debug.print("quat: {any}\n", .{self.camera.rot});
 
         if (self.input.keyDown(.escape))
             self.running = false;
