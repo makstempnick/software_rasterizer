@@ -1,7 +1,7 @@
 const std = @import("std");
 const App = @import("App.zig");
 
-pub fn main() !void {
+pub fn main(init: std.process.Init) !void {
     var allocator = std.heap.DebugAllocator(.{}).init;
 
     const gpa = allocator.allocator();
@@ -13,5 +13,5 @@ pub fn main() !void {
         _ = allocator.deinit();
     }
 
-    try app.start(gpa);
+    try app.start(init, gpa);
 }

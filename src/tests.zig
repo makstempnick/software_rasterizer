@@ -7,3 +7,7 @@ test "quat" {
     const quat = zm.quatFromRollPitchYawV(euler);
     std.debug.print("euler: {};\n quat: {};\n", .{ euler, quat });
 }
+test "parse" {
+    const str = "-1.4";
+    std.debug.print("{}\n", .{try std.fmt.parseFloat(f32, str)});
+}

@@ -6,7 +6,21 @@ const Thread = std.Thread;
 const Triangle = @import("Triangle.zig");
 const Mesh = @import("Mesh.zig");
 
-pub fn renderTriangle(app: *App, triangle: *Triangle) void {
+pub fn renderMesh(app: *App, mesh: *Mesh) void {
+    for (0..mesh.indices.len / 3) |i| {
+        const ind0 = mesh.indices[3 * i];
+        const ind1 = mesh.indices[3 * i + 1];
+        const ind2 = mesh.indices[3 * i + 2];
+
+        const v0 = mesh.vertices[ind0];
+        const v1 = mesh.vertices[ind1];
+        const v2 = mesh.vertices[ind2];
+
+        const triangle = Triangle.init(.{ v0, v1, v2 });
+        renderTriangle(app, triangle);
+    }
+}
+pub fn renderTriangle(app: *App, triangle: Triangle) void {
     const projected = triangle.localCamProj(app.render_aspect, &app.camera);
 
     const pos_diff = app.camera.pos - triangle.getMiddle();

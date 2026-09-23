@@ -13,6 +13,7 @@ const FramerateCapper = sdl.extras.FramerateCapper;
 const Input = @import("Input.zig");
 const Camera = @import("Camera.zig");
 
+const Vec = zm.Vec;
 const Triangle = @import("Triangle.zig");
 const Mesh = @import("Mesh.zig");
 const Model = @import("Model.zig");
@@ -123,86 +124,26 @@ pub fn deinit(self: *Self, gpa: Allocator) void {
     sdl.quit(self.init_flags);
     sdl.shutdown();
 }
-pub fn start(self: *Self, gpa: Allocator) !void {
-    std.debug.print("right: {}\n", .{self.camera.getRight()});
-    std.debug.print("up: {}\n", .{self.camera.getUp()});
-    std.debug.print("forward: {}\n", .{self.camera.getForward()});
-
-    std.debug.print("view: {any}\n", .{self.camera.getViewMat()});
-
-    try self.createMeshes(gpa);
+pub fn start(self: *Self, std_init: std.process.Init, gpa: Allocator) !void {
+    try self.createMeshes(std_init, gpa);
     self.gameLoop();
 }
-fn createMeshes(self: *Self, gpa: Allocator) !void {
-    const triangles = try gpa.alloc(Triangle, 12);
+fn createMeshes(self: *Self, std_init: std.process.Init, gpa: Allocator) !void {
+    // const vertices = try gpa.alloc(Vec, 3);
+    // vertices[0] = zm.f32x4(0, 0, 10, 1);
+    // vertices[1] = zm.f32x4(4, 4, 10, 1);
+    // vertices[2] = zm.f32x4(4, 0, 10, 1);
 
-    triangles[0] = Triangle.init(.{
-        f32x4(0, 0, 10, 1),
-        f32x4(0, 4, 10, 1),
-        f32x4(4, 0, 10, 1),
-    });
-    triangles[1] = Triangle.init(.{
-        f32x4(0, 4, 10, 1),
-        f32x4(4, 4, 10, 1),
-        f32x4(4, 0, 10, 1),
-    });
+    // const indices = try gpa.alloc(usize, 3);
+    // indices[0] = 0;
+    // indices[1] = 1;
+    // indices[2] = 2;
 
-    triangles[2] = Triangle.init(.{
-        f32x4(0, 0, 14, 1),
-        f32x4(0, 4, 14, 1),
-        f32x4(4, 0, 14, 1),
-    }).getFlipped();
-    triangles[3] = Triangle.init(.{
-        f32x4(0, 4, 14, 1),
-        f32x4(4, 4, 14, 1),
-        f32x4(4, 0, 14, 1),
-    }).getFlipped();
+    // const mesh = Mesh.init(vertices, indices);
+    // try self.meshes.append(gpa, mesh);
 
-    triangles[4] = Triangle.init(.{
-        f32x4(0, 0, 10, 1),
-        f32x4(0, 0, 14, 1),
-        f32x4(0, 4, 14, 1),
-    });
-    triangles[5] = Triangle.init(.{
-        f32x4(0, 4, 14, 1),
-        f32x4(0, 4, 10, 1),
-        f32x4(0, 0, 10, 1),
-    });
-
-    triangles[6] = Triangle.init(.{
-        f32x4(4, 0, 10, 1),
-        f32x4(4, 0, 14, 1),
-        f32x4(4, 4, 14, 1),
-    }).getFlipped();
-    triangles[7] = Triangle.init(.{
-        f32x4(4, 4, 14, 1),
-        f32x4(4, 4, 10, 1),
-        f32x4(4, 0, 10, 1),
-    }).getFlipped();
-
-    triangles[8] = Triangle.init(.{
-        f32x4(0, 0, 14, 1),
-        f32x4(0, 0, 10, 1),
-        f32x4(4, 0, 10, 1),
-    });
-    triangles[9] = Triangle.init(.{
-        f32x4(0, 0, 14, 1),
-        f32x4(4, 0, 10, 1),
-        f32x4(4, 0, 14, 1),
-    });
-
-    triangles[10] = Triangle.init(.{
-        f32x4(0, 4, 14, 1),
-        f32x4(0, 4, 10, 1),
-        f32x4(4, 4, 10, 1),
-    }).getFlipped();
-    triangles[11] = Triangle.init(.{
-        f32x4(0, 4, 14, 1),
-        f32x4(4, 4, 10, 1),
-        f32x4(4, 4, 14, 1),
-    }).getFlipped();
-
-    const mesh = Mesh.init(triangles);
+    const mesh = try Mesh.fromObjFile(gpa, std_init, "assets/Untitled.obj");
+    std.debug.print("vertices: {}; indices: {}; \n", .{ mesh.vertices.len, mesh.indices.len });
     try self.meshes.append(gpa, mesh);
 }
 fn gameLoop(self: *Self) void {
@@ -220,8 +161,7 @@ fn gameLoop(self: *Self) void {
         self.render_buffer.fill(.{ 0, 0, 0, 255 });
 
         for (self.meshes.items) |*mesh|
-            for (mesh.triangles) |*triangle|
-                rendering.renderTriangle(self, triangle);
+            rendering.renderMesh(self, mesh);
 
         rendering.display(self) catch
             std.debug.print("cant display!!!!!!!!!", .{});
