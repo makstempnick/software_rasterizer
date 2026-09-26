@@ -14,7 +14,7 @@ const Input = @import("Input.zig");
 const Camera = @import("Camera.zig");
 
 const Vec = zm.Vec;
-const Triangle = @import("Triangle.zig");
+const Triangle = math.Triangle;
 const Mesh = @import("Mesh.zig");
 const Model = @import("Model.zig");
 
@@ -32,6 +32,7 @@ window: Window,
 fps_cap: FramerateCapper(f32),
 dt: f32 = 0,
 thread_states: []bool,
+triangle_stack: std.ArrayList(Triangle),
 
 render_buffer: Buffer,
 display_buffer: Buffer,
@@ -65,8 +66,9 @@ pub fn init(gpa: Allocator) !Self {
 
     const core_count = try std.Thread.getCpuCount();
     const thread_states = try gpa.alloc(bool, core_count);
+    const triangle_stack = try std.ArrayList(Triangle).initCapacity(gpa, 1024);
 
-    const render_buffer = try Buffer.init(gpa, 100, 100);
+    const render_buffer = try Buffer.init(gpa, 200, 200);
     render_buffer.fill(.{ 0, 0, 0, 255 });
 
     const display_buffer = Buffer.from(win_width, win_height, pixels);
@@ -77,9 +79,9 @@ pub fn init(gpa: Allocator) !Self {
 
     const input = try Input.init(gpa);
 
-    const cam_pos = f32x4(0, 0, 0, 1);
+    const cam_pos = f32x4(0, 0, -5, 1);
     const cam_rot = zm.quatFromMat(zm.lookToLh(cam_pos, math.forward, math.up));
-    const camera = Camera.init(cam_pos, cam_rot, math.quart_rot, f32x4s(6), f32x4s(1));
+    const camera = Camera.init(cam_pos, cam_rot, math.quart_rot, 0.1, 100.0, f32x4s(6), f32x4s(1));
 
     const meshes = std.ArrayList(Mesh).empty;
     const models = std.ArrayList(Model).empty;
@@ -89,6 +91,7 @@ pub fn init(gpa: Allocator) !Self {
         .window = window,
         .fps_cap = fps_cap,
         .thread_states = thread_states,
+        .triangle_stack = triangle_stack,
 
         .render_buffer = render_buffer,
         .display_buffer = display_buffer,
@@ -110,6 +113,7 @@ pub fn deinit(self: *Self, gpa: Allocator) void {
 
     self.window.deinit();
     gpa.free(self.thread_states);
+    self.triangle_stack.deinit(gpa);
 
     self.render_buffer.deinit(gpa);
 
@@ -125,26 +129,33 @@ pub fn deinit(self: *Self, gpa: Allocator) void {
     sdl.shutdown();
 }
 pub fn start(self: *Self, std_init: std.process.Init, gpa: Allocator) !void {
-    try self.createMeshes(std_init, gpa);
+    try self.loadMeshes(std_init, gpa);
     self.gameLoop();
+
+    // _ = self;
+    // _ = std_init;
+    // _ = gpa;
 }
-fn createMeshes(self: *Self, std_init: std.process.Init, gpa: Allocator) !void {
+fn loadMeshes(self: *Self, std_init: std.process.Init, gpa: Allocator) !void {
+    // const cube = try Mesh.fromObjFile(gpa, std_init, "assets/Cube.obj");
+    const plane = try Mesh.fromObjFile(gpa, std_init, "assets/Plane.obj");
+    // try self.meshes.append(gpa, cube);
+    try self.meshes.append(gpa, plane);
+
+    // _ = std_init;
+
     // const vertices = try gpa.alloc(Vec, 3);
-    // vertices[0] = zm.f32x4(0, 0, 10, 1);
-    // vertices[1] = zm.f32x4(4, 4, 10, 1);
-    // vertices[2] = zm.f32x4(4, 0, 10, 1);
-
     // const indices = try gpa.alloc(usize, 3);
-    // indices[0] = 0;
-    // indices[1] = 1;
-    // indices[2] = 2;
 
-    // const mesh = Mesh.init(vertices, indices);
-    // try self.meshes.append(gpa, mesh);
+    // vertices[0] = zm.f32x4(-2, -2, 3, 1);
+    // vertices[1] = zm.f32x4(-2, 2, 3, 1);
+    // vertices[2] = zm.f32x4(2, -2, 3, 1);
 
-    const mesh = try Mesh.fromObjFile(gpa, std_init, "assets/Untitled.obj");
-    std.debug.print("vertices: {}; indices: {}; \n", .{ mesh.vertices.len, mesh.indices.len });
-    try self.meshes.append(gpa, mesh);
+    // for (0..3) |i|
+    //     indices[i] = i;
+
+    // const mesh_2 = Mesh.init(vertices, indices);
+    // try self.meshes.append(gpa, mesh_2);
 }
 fn gameLoop(self: *Self) void {
     while (self.running) {

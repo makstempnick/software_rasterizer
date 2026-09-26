@@ -1,9 +1,10 @@
 const std = @import("std");
 const zm = @import("zm");
+const math = @import("math.zig");
 
 const Allocator = std.mem.Allocator;
 const Vec = zm.Vec;
-const Triangle = @import("Triangle.zig");
+const Triangle = math.Triangle;
 
 const Self = @This();
 
@@ -80,8 +81,6 @@ pub fn fromObjFile(gpa: Allocator, std_init: std.process.Init, path: []const u8)
         if (!std.mem.eql(u8, line[0..2], "f "))
             break;
 
-        std.debug.print("index line: {s}\n", .{line});
-
         for (0..3) |_| {
             _ = try reader.takeDelimiter(' ');
 
@@ -97,16 +96,11 @@ pub fn fromObjFile(gpa: Allocator, std_init: std.process.Init, path: []const u8)
             break;
     }
 
-    std.debug.print("\n", .{});
-
     var array_vertices = try gpa.alloc(Vec, vertices.items.len);
     var array_indices = try gpa.alloc(usize, indices.items.len);
 
     @memcpy(array_vertices[0..], vertices.items[0..]);
     @memcpy(array_indices[0..], indices.items[0..]);
-
-    std.debug.print("vertices: {any}\n", .{array_vertices});
-    std.debug.print("indices: {any}\n", .{array_indices});
 
     vertices.deinit(gpa);
     indices.deinit(gpa);

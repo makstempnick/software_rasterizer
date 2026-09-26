@@ -1,12 +1,21 @@
 const std = @import("std");
 const zm = @import("zm");
+const math = @import("math.zig");
 
 const App = @import("App.zig");
 const Thread = std.Thread;
-const Triangle = @import("Triangle.zig");
+const Plane = math.Plane;
+const Triangle = math.Triangle;
 const Mesh = @import("Mesh.zig");
 
 pub fn renderMesh(app: *App, mesh: *Mesh) void {
+    const screen_edges = [4]Plane{
+        .{ .{ 0, 0, 0, 1 }, .{ 1, 0, 0, 0 } },
+        .{ .{ 1, 0, 0, 1 }, .{ -1, 0, 0, 0 } },
+        .{ .{ 0, 0, 0, 1 }, .{ 0, 1, 0, 0 } },
+        .{ .{ 0, 1, 0, 1 }, .{ 0, -1, 0, 0 } },
+    };
+
     for (0..mesh.indices.len / 3) |i| {
         const ind0 = mesh.indices[3 * i];
         const ind1 = mesh.indices[3 * i + 1];
@@ -16,38 +25,67 @@ pub fn renderMesh(app: *App, mesh: *Mesh) void {
         const v1 = mesh.vertices[ind1];
         const v2 = mesh.vertices[ind2];
 
-        const triangle = Triangle.init(.{ v0, v1, v2 });
-        renderTriangle(app, triangle);
+        const triangle = Triangle{ v0, v1, v2 };
+
+        const pos_diff = app.camera.pos - math.getTriangleMiddle(triangle);
+
+        const dot = zm.dot3(pos_diff, math.getTriangleNormal(triangle));
+
+        if (dot[0] < 0)
+            continue;
+
+        const projected = math.localCamProjTriangle(triangle, app.render_aspect, &app.camera);
+
+        const near_plane = app.camera.getNearPlane();
+
+        var depth_clipped: [2]Triangle = undefined;
+        const depth_amount = math.clipTriangleAgainstPlane(projected, near_plane, &depth_clipped);
+
+        for (0..depth_amount) |j| {
+            app.triangle_stack.clearRetainingCapacity();
+
+            app.triangle_stack.appendAssumeCapacity(math.screenProjTriangle(depth_clipped[j]));
+
+            var screen_clipped: [2]Triangle = undefined;
+
+            var new_triangles: usize = 1;
+
+            for (screen_edges) |screen_edge| {
+                var tris_to_add: usize = 0;
+
+                while (new_triangles > 0) {
+                    const popped = app.triangle_stack.pop().?;
+
+                    new_triangles -= 1;
+
+                    tris_to_add = math.clipTriangleAgainstPlane(popped, screen_edge, &screen_clipped);
+
+                    for (0..tris_to_add) |k|
+                        app.triangle_stack.appendAssumeCapacity(screen_clipped[k]);
+                }
+
+                new_triangles = app.triangle_stack.items.len;
+            }
+
+            for (app.triangle_stack.items) |final|
+                renderTriangle(app, final);
+        }
     }
 }
+/// triangle must already be screen space !!!!!!!!!!
 pub fn renderTriangle(app: *App, triangle: Triangle) void {
-    const projected = triangle.localCamProj(app.render_aspect, &app.camera);
-
-    const pos_diff = app.camera.pos - triangle.getMiddle();
-
-    const dot = zm.dot3(pos_diff, triangle.getNormal());
-
-    if (dot[0] < 0)
-        return;
-
     for (0..3) |i| {
-        const proj_0 = projected.vertices[i];
-        const proj_1 = if (i < 2)
-            projected.vertices[i + 1]
+        const pos_0 = triangle[i];
+        const pos_1 = if (i < 2)
+            triangle[i + 1]
         else
-            projected.vertices[0];
+            triangle[0];
 
-        const proj_x0 = (proj_0[0] / proj_0[2] + 1) / 2;
-        const proj_y0 = (proj_0[1] / proj_0[2] + 1) / 2;
+        const screen_x0: i32 = @trunc((@as(f32, @floatFromInt(app.render_buffer.width - 1)) * pos_0[0]));
+        const screen_y0: i32 = @trunc(@as(f32, @floatFromInt(app.render_buffer.height - 1)) - (@as(f32, @floatFromInt(app.render_buffer.height - 1)) * pos_0[1]));
 
-        const proj_x1 = (proj_1[0] / proj_1[2] + 1) / 2;
-        const proj_y1 = (proj_1[1] / proj_1[2] + 1) / 2;
-
-        const screen_x0: i32 = @trunc((@as(f32, @floatFromInt(app.render_buffer.width)) * proj_x0));
-        const screen_y0: i32 = @trunc(@as(f32, @floatFromInt(app.render_buffer.height)) - (@as(f32, @floatFromInt(app.render_buffer.height)) * proj_y0));
-
-        const screen_x1: i32 = @trunc((@as(f32, @floatFromInt(app.render_buffer.width)) * proj_x1));
-        const screen_y1: i32 = @trunc(@as(f32, @floatFromInt(app.render_buffer.height)) - (@as(f32, @floatFromInt(app.render_buffer.height)) * proj_y1));
+        const screen_x1: i32 = @trunc((@as(f32, @floatFromInt(app.render_buffer.width - 1)) * pos_1[0]));
+        const screen_y1: i32 = @trunc(@as(f32, @floatFromInt(app.render_buffer.height - 1)) - (@as(f32, @floatFromInt(app.render_buffer.height - 1)) * pos_1[1]));
 
         drawLine(app, screen_x0, screen_y0, screen_x1, screen_y1);
     }
