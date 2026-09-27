@@ -53,7 +53,7 @@ pub fn getNearPlane(self: *Self) Plane {
     return .{ .{ 0, 0, self.near, 1 }, .{ 0, 0, 1, 0 } };
 }
 pub fn getFarPlane(self: *Self) Plane {
-    return .{ .{ 0, 0, self.far, 1 }, .{ 0, 0, 1, 0 } };
+    return .{ .{ 0, 0, self.far, 1 }, .{ 0, 0, -1, 0 } };
 }
 pub fn move(self: *Self, input: *Input, dt: f32) void {
     const dt_vec = zm.f32x4s(dt);

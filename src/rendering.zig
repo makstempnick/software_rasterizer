@@ -25,7 +25,12 @@ pub fn renderMesh(app: *App, mesh: *Mesh) void {
         const v1 = mesh.vertices[ind1];
         const v2 = mesh.vertices[ind2];
 
+        const t0 = mesh.tex_coords[ind0];
+        const t1 = mesh.tex_coords[ind1];
+        const t2 = mesh.tex_coords[ind2];
+
         const triangle = Triangle{ v0, v1, v2 };
+        const tex_coords = Triangle{ t0, t1, t2 };
 
         const pos_diff = app.camera.pos - math.getTriangleMiddle(triangle);
 
@@ -37,58 +42,107 @@ pub fn renderMesh(app: *App, mesh: *Mesh) void {
         const projected = math.localCamProjTriangle(triangle, app.render_aspect, &app.camera);
 
         const near_plane = app.camera.getNearPlane();
+        const far_plane = app.camera.getFarPlane();
 
-        var depth_clipped: [2]Triangle = undefined;
-        const depth_amount = math.clipTriangleAgainstPlane(projected, near_plane, &depth_clipped);
+        var depth_clipped_0: [2]Triangle = undefined;
+        const depth_amount_0 = math.clipTriangleAgainstPlane(projected, near_plane, &depth_clipped_0);
 
-        for (0..depth_amount) |j| {
-            app.triangle_stack.clearRetainingCapacity();
+        for (0..depth_amount_0) |j| {
+            var depth_clipped_1: [2]Triangle = undefined;
+            const depth_amount_1 = math.clipTriangleAgainstPlane(depth_clipped_0[j], far_plane, &depth_clipped_1);
 
-            app.triangle_stack.appendAssumeCapacity(math.screenProjTriangle(depth_clipped[j]));
+            for (0..depth_amount_1) |k| {
+                var screen_clipped_0: [2]Triangle = undefined;
 
-            var screen_clipped: [2]Triangle = undefined;
+                const screen_amount_0 = math.clipTriangleAgainstPlane(math.screenProjTriangle(depth_clipped_1[k]), screen_edges[0], &screen_clipped_0);
 
-            var new_triangles: usize = 1;
+                for (0..screen_amount_0) |l| {
+                    var screen_clipped_1: [2]Triangle = undefined;
 
-            for (screen_edges) |screen_edge| {
-                var tris_to_add: usize = 0;
+                    const screen_amount_1 = math.clipTriangleAgainstPlane(screen_clipped_0[l], screen_edges[1], &screen_clipped_1);
 
-                while (new_triangles > 0) {
-                    const popped = app.triangle_stack.pop().?;
+                    for (0..screen_amount_1) |m| {
+                        var screen_clipped_2: [2]Triangle = undefined;
 
-                    new_triangles -= 1;
+                        const screen_amount_2 = math.clipTriangleAgainstPlane(screen_clipped_1[m], screen_edges[2], &screen_clipped_2);
 
-                    tris_to_add = math.clipTriangleAgainstPlane(popped, screen_edge, &screen_clipped);
+                        for (0..screen_amount_2) |n| {
+                            var screen_clipped_3: [2]Triangle = undefined;
 
-                    for (0..tris_to_add) |k|
-                        app.triangle_stack.appendAssumeCapacity(screen_clipped[k]);
+                            const screen_amount_3 = math.clipTriangleAgainstPlane(screen_clipped_2[n], screen_edges[3], &screen_clipped_3);
+
+                            for (0..screen_amount_3) |o|
+                                renderTriangle(app, screen_clipped_3[o], tex_coords, mesh.tex_id);
+
+                            // this is ugly af
+                            // i tried the stack approach but it didnt work
+                            // so why not this :3
+                        }
+                    }
                 }
-
-                new_triangles = app.triangle_stack.items.len;
             }
-
-            for (app.triangle_stack.items) |final|
-                renderTriangle(app, final);
         }
     }
 }
 /// triangle must already be screen space !!!!!!!!!!
-pub fn renderTriangle(app: *App, triangle: Triangle) void {
-    for (0..3) |i| {
-        const pos_0 = triangle[i];
-        const pos_1 = if (i < 2)
-            triangle[i + 1]
-        else
-            triangle[0];
+pub fn renderTriangle(app: *App, triangle: Triangle, tex_coords: Triangle, tex_id: usize) void {
+    const texture = app.textures.items[tex_id];
+    _ = texture;
 
-        const screen_x0: i32 = @trunc((@as(f32, @floatFromInt(app.render_buffer.width - 1)) * pos_0[0]));
-        const screen_y0: i32 = @trunc(@as(f32, @floatFromInt(app.render_buffer.height - 1)) - (@as(f32, @floatFromInt(app.render_buffer.height - 1)) * pos_0[1]));
+    // TODO: rasterization
 
-        const screen_x1: i32 = @trunc((@as(f32, @floatFromInt(app.render_buffer.width - 1)) * pos_1[0]));
-        const screen_y1: i32 = @trunc(@as(f32, @floatFromInt(app.render_buffer.height - 1)) - (@as(f32, @floatFromInt(app.render_buffer.height - 1)) * pos_1[1]));
+    var x0: i32 = @trunc((@as(f32, @floatFromInt(app.render_buffer.width - 1)) * triangle[0][0]));
+    // var y0: i32 = @trunc((@as(f32, @floatFromInt(app.render_buffer.height - 1)) * triangle[0][1]));
+    var y0: i32 = @trunc(@as(f32, @floatFromInt(app.render_buffer.height - 1)) - (@as(f32, @floatFromInt(app.render_buffer.height - 1)) * triangle[0][1]));
 
-        drawLine(app, screen_x0, screen_y0, screen_x1, screen_y1);
+    var x1: i32 = @trunc((@as(f32, @floatFromInt(app.render_buffer.width - 1)) * triangle[1][0]));
+    // var y1: i32 = @trunc((@as(f32, @floatFromInt(app.render_buffer.height - 1)) * triangle[1][1]));
+    var y1: i32 = @trunc(@as(f32, @floatFromInt(app.render_buffer.height - 1)) - (@as(f32, @floatFromInt(app.render_buffer.height - 1)) * triangle[1][1]));
+
+    var x2: i32 = @trunc((@as(f32, @floatFromInt(app.render_buffer.width - 1)) * triangle[2][0]));
+    // var y2: i32 = @trunc((@as(f32, @floatFromInt(app.render_buffer.height - 1)) * triangle[2][1]));
+    var y2: i32 = @trunc(@as(f32, @floatFromInt(app.render_buffer.height - 1)) - (@as(f32, @floatFromInt(app.render_buffer.height - 1)) * triangle[2][1]));
+
+    if (x0 < 0 or y0 < 0 or x1 < 0 or y1 < 0 or x2 < 0 or y2 < 0)
+        std.debug.print("!!!!!!!!!!!!!!\n", .{});
+
+    var _u0 = tex_coords[0][0];
+    var _v0 = tex_coords[0][1];
+
+    var _u1 = tex_coords[1][0];
+    var _v1 = tex_coords[1][1];
+
+    var _u2 = tex_coords[2][0];
+    var _v2 = tex_coords[2][1];
+
+    if (y1 < y0) {
+        std.mem.swap(i32, &y0, &y1);
+        std.mem.swap(i32, &x0, &x1);
+
+        std.mem.swap(f32, &_u0, &_u1);
+        std.mem.swap(f32, &_v0, &_v1);
     }
+
+    if (y2 < y0) {
+        std.mem.swap(i32, &y0, &y2);
+        std.mem.swap(i32, &x0, &x2);
+
+        std.mem.swap(f32, &_u0, &_u2);
+        std.mem.swap(f32, &_v0, &_v2);
+    }
+
+    if (y2 < y1) {
+        std.mem.swap(i32, &y1, &y2);
+        std.mem.swap(i32, &x1, &x2);
+
+        std.mem.swap(f32, &_u1, &_u2);
+        std.mem.swap(f32, &_v1, &_v2);
+    }
+
+    // intcasts when i was testing it with usize
+    drawLine(app, @intCast(x0), @intCast(y0), @intCast(x1), @intCast(y1));
+    drawLine(app, @intCast(x1), @intCast(y1), @intCast(x2), @intCast(y2));
+    drawLine(app, @intCast(x2), @intCast(y2), @intCast(x0), @intCast(y0));
 }
 pub fn drawLine(app: *App, x0: i32, y0: i32, x1: i32, y1: i32) void {
     if (@abs(x1 - x0) > @abs(y1 - y0)) {
@@ -123,7 +177,7 @@ fn drawLineH(app: *App, x0: i32, y0: i32, x1: i32, y1: i32) void {
         const final_x = x0 + @as(i32, @intCast(x));
 
         if (final_x > 0 and final_x < app.render_buffer.width and y > 0 and y < app.render_buffer.height)
-            app.render_buffer.setColor(@intCast(final_x), @intCast(y), .{ 255, 0, 0, 255 });
+            app.render_buffer.setColor(@intCast(final_x), @intCast(y), .{ 255, 255, 255, 255 });
 
         if (p >= 0) {
             y += dir;
@@ -151,7 +205,7 @@ fn drawLineV(app: *App, x0: i32, y0: i32, x1: i32, y1: i32) void {
         const final_y = y0 + @as(i32, @intCast(y));
 
         if (x > 0 and x < app.render_buffer.width and final_y > 0 and final_y < app.render_buffer.height)
-            app.render_buffer.setColor(@intCast(x), @intCast(final_y), .{ 255, 0, 0, 255 });
+            app.render_buffer.setColor(@intCast(x), @intCast(final_y), .{ 255, 255, 255, 255 });
 
         if (p >= 0) {
             x += dir;

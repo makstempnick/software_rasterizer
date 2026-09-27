@@ -32,7 +32,6 @@ window: Window,
 fps_cap: FramerateCapper(f32),
 dt: f32 = 0,
 thread_states: []bool,
-triangle_stack: std.ArrayList(Triangle),
 
 render_buffer: Buffer,
 display_buffer: Buffer,
@@ -46,6 +45,7 @@ camera: Camera,
 
 meshes: std.ArrayList(Mesh),
 models: std.ArrayList(Model),
+textures: std.ArrayList(Buffer),
 
 pub fn init(gpa: Allocator) !Self {
     const init_flags = InitFlags{ .video = true };
@@ -66,7 +66,6 @@ pub fn init(gpa: Allocator) !Self {
 
     const core_count = try std.Thread.getCpuCount();
     const thread_states = try gpa.alloc(bool, core_count);
-    const triangle_stack = try std.ArrayList(Triangle).initCapacity(gpa, 1024);
 
     const render_buffer = try Buffer.init(gpa, 200, 200);
     render_buffer.fill(.{ 0, 0, 0, 255 });
@@ -81,17 +80,17 @@ pub fn init(gpa: Allocator) !Self {
 
     const cam_pos = f32x4(0, 0, -5, 1);
     const cam_rot = zm.quatFromMat(zm.lookToLh(cam_pos, math.forward, math.up));
-    const camera = Camera.init(cam_pos, cam_rot, math.quart_rot, 0.1, 100.0, f32x4s(6), f32x4s(1));
+    const camera = Camera.init(cam_pos, cam_rot, math.quart_rot, 0.1, 10.0, f32x4s(6), f32x4s(1));
 
     const meshes = std.ArrayList(Mesh).empty;
     const models = std.ArrayList(Model).empty;
+    const textures = std.ArrayList(Buffer).empty;
 
     return .{
         .init_flags = init_flags,
         .window = window,
         .fps_cap = fps_cap,
         .thread_states = thread_states,
-        .triangle_stack = triangle_stack,
 
         .render_buffer = render_buffer,
         .display_buffer = display_buffer,
@@ -105,6 +104,7 @@ pub fn init(gpa: Allocator) !Self {
 
         .meshes = meshes,
         .models = models,
+        .textures = textures,
     };
 }
 pub fn deinit(self: *Self, gpa: Allocator) void {
@@ -113,7 +113,6 @@ pub fn deinit(self: *Self, gpa: Allocator) void {
 
     self.window.deinit();
     gpa.free(self.thread_states);
-    self.triangle_stack.deinit(gpa);
 
     self.render_buffer.deinit(gpa);
 
@@ -122,14 +121,19 @@ pub fn deinit(self: *Self, gpa: Allocator) void {
     for (self.meshes.items) |*mesh|
         mesh.deinit(gpa);
 
+    for (self.textures.items) |*texture|
+        texture.deinit(gpa);
+
     self.meshes.deinit(gpa);
     self.models.deinit(gpa);
+    self.textures.deinit(gpa);
 
     sdl.quit(self.init_flags);
     sdl.shutdown();
 }
 pub fn start(self: *Self, std_init: std.process.Init, gpa: Allocator) !void {
     try self.loadMeshes(std_init, gpa);
+    try self.loadTextures(gpa);
     self.gameLoop();
 
     // _ = self;
@@ -137,25 +141,32 @@ pub fn start(self: *Self, std_init: std.process.Init, gpa: Allocator) !void {
     // _ = gpa;
 }
 fn loadMeshes(self: *Self, std_init: std.process.Init, gpa: Allocator) !void {
-    // const cube = try Mesh.fromObjFile(gpa, std_init, "assets/Cube.obj");
-    const plane = try Mesh.fromObjFile(gpa, std_init, "assets/Plane.obj");
-    // try self.meshes.append(gpa, cube);
-    try self.meshes.append(gpa, plane);
+    const cube = try Mesh.fromObjFile(gpa, std_init, "assets/Cube.obj");
+    // const plane = try Mesh.fromObjFile(gpa, std_init, "assets/Plane.obj");
+    try self.meshes.append(gpa, cube);
+    // try self.meshes.append(gpa, plane);
 
     // _ = std_init;
 
     // const vertices = try gpa.alloc(Vec, 3);
+    // const tex_coords = try gpa.alloc(Vec, 3);
     // const indices = try gpa.alloc(usize, 3);
 
     // vertices[0] = zm.f32x4(-2, -2, 3, 1);
     // vertices[1] = zm.f32x4(-2, 2, 3, 1);
     // vertices[2] = zm.f32x4(2, -2, 3, 1);
 
+    // @memset(tex_coords[0..], .{ 0, 0, 0, 0 });
+
     // for (0..3) |i|
     //     indices[i] = i;
 
-    // const mesh_2 = Mesh.init(vertices, indices);
+    // const mesh_2 = Mesh.init(vertices, tex_coords, indices, 0);
     // try self.meshes.append(gpa, mesh_2);
+}
+fn loadTextures(self: *Self, gpa: Allocator) !void {
+    const wood = try loadTexture("assets/wood.png", gpa);
+    try self.textures.append(gpa, wood);
 }
 fn gameLoop(self: *Self) void {
     while (self.running) {
@@ -193,4 +204,23 @@ fn handleEvents(self: *Self) !void {
 
         self.input.step(event);
     }
+}
+pub fn loadTexture(path: [:0]const u8, gpa: Allocator) !Buffer {
+    const file = blk: {
+        const temp = try sdl.image.loadFile(path);
+        defer temp.deinit();
+        break :blk try temp.convertFormat(.packed_abgr_8_8_8_8);
+    };
+
+    const width = file.getWidth();
+    const height = file.getHeight();
+
+    const pixels = file.getPixels().?;
+    const buffer = try Buffer.init(gpa, width, height);
+
+    @memcpy(buffer.colors[0..], pixels[0..]);
+
+    file.deinit();
+
+    return buffer;
 }
