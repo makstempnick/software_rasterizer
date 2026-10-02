@@ -12,15 +12,11 @@ vertices: []Vec,
 tex_coords: []Vec,
 indices: []usize,
 
-tex_id: usize,
-
-pub fn init(vertices: []Vec, tex_coords: []Vec, indices: []usize, tex_id: usize) Self {
+pub fn init(vertices: []Vec, tex_coords: []Vec, indices: []usize) Self {
     return .{
         .vertices = vertices,
         .tex_coords = tex_coords,
         .indices = indices,
-
-        .tex_id = tex_id,
     };
 }
 pub fn deinit(self: *Self, gpa: Allocator) void {
@@ -46,6 +42,11 @@ pub fn fromObjFile(gpa: Allocator, std_init: std.process.Init, path: []const u8)
     while (true) {
         const line = try reader.peekDelimiterExclusive('\n');
 
+        if (line.len < 2) {
+            _ = try reader.takeDelimiter('\n');
+            continue;
+        }
+
         if (std.mem.eql(u8, line[0..2], "v "))
             break;
 
@@ -55,7 +56,10 @@ pub fn fromObjFile(gpa: Allocator, std_init: std.process.Init, path: []const u8)
     while (true) {
         const line = try reader.peekDelimiterExclusive('\n');
 
-        if (!std.mem.eql(u8, line[0..2], "v "))
+        std.debug.print("vertex line: {s}\n", .{line});
+        std.debug.print("count: {}\n", .{vertices.items.len});
+
+        if (line.len < 2 or !std.mem.eql(u8, line[0..2], "v "))
             break;
 
         _ = try reader.takeDelimiter(' ');
@@ -79,6 +83,11 @@ pub fn fromObjFile(gpa: Allocator, std_init: std.process.Init, path: []const u8)
     while (true) {
         const line = try reader.peekDelimiterExclusive('\n');
 
+        if (line.len < 2) {
+            _ = try reader.takeDelimiter('\n');
+            continue;
+        }
+
         if (std.mem.eql(u8, line[0..2], "vt"))
             break;
 
@@ -88,7 +97,7 @@ pub fn fromObjFile(gpa: Allocator, std_init: std.process.Init, path: []const u8)
     while (true) {
         const line = try reader.peekDelimiterExclusive('\n');
 
-        if (!std.mem.eql(u8, line[0..2], "vt"))
+        if (line.len < 2 or !std.mem.eql(u8, line[0..2], "vt"))
             break;
 
         _ = try reader.takeDelimiter(' ');
@@ -112,6 +121,11 @@ pub fn fromObjFile(gpa: Allocator, std_init: std.process.Init, path: []const u8)
     while (true) {
         const line = try reader.peekDelimiterExclusive('\n');
 
+        if (line.len < 2) {
+            _ = try reader.takeDelimiter('\n');
+            continue;
+        }
+
         if (std.mem.eql(u8, line[0..2], "f "))
             break;
 
@@ -121,7 +135,10 @@ pub fn fromObjFile(gpa: Allocator, std_init: std.process.Init, path: []const u8)
     while (true) {
         const line = try reader.peekDelimiterExclusive('\n');
 
-        if (!std.mem.eql(u8, line[0..2], "f "))
+        std.debug.print("index line: {s}\n", .{line});
+        std.debug.print("count: {}\n", .{indices.items.len});
+
+        if (line.len < 2 or !std.mem.eql(u8, line[0..2], "f "))
             break;
 
         for (0..3) |_| {
@@ -151,11 +168,11 @@ pub fn fromObjFile(gpa: Allocator, std_init: std.process.Init, path: []const u8)
     tex_coords.deinit(gpa);
     indices.deinit(gpa);
 
+    std.debug.print("vertices: {}; tex_coords: {}; indices: {};\n", .{ array_vertices.len, array_tex_coords.len, array_indices.len });
+
     return .{
         .vertices = array_vertices,
         .tex_coords = array_tex_coords,
         .indices = array_indices,
-
-        .tex_id = 0,
     };
 }

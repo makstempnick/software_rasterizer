@@ -78,9 +78,9 @@ pub fn init(gpa: Allocator) !Self {
 
     const input = try Input.init(gpa);
 
-    const cam_pos = f32x4(0, 0, -5, 1);
+    const cam_pos = f32x4(0, 5, -5, 1);
     const cam_rot = zm.quatFromMat(zm.lookToLh(cam_pos, math.forward, math.up));
-    const camera = Camera.init(cam_pos, cam_rot, math.quart_rot, 0.1, 10.0, f32x4s(6), f32x4s(1));
+    const camera = Camera.init(cam_pos, cam_rot, math.quart_rot, 0.1, 100.0, f32x4s(6), f32x4s(1));
 
     const meshes = std.ArrayList(Mesh).empty;
     const models = std.ArrayList(Model).empty;
@@ -141,27 +141,33 @@ pub fn start(self: *Self, std_init: std.process.Init, gpa: Allocator) !void {
     // _ = gpa;
 }
 fn loadMeshes(self: *Self, std_init: std.process.Init, gpa: Allocator) !void {
-    const cube = try Mesh.fromObjFile(gpa, std_init, "assets/Cube.obj");
-    // const plane = try Mesh.fromObjFile(gpa, std_init, "assets/Plane.obj");
-    try self.meshes.append(gpa, cube);
-    // try self.meshes.append(gpa, plane);
+    // const cube = try Mesh.fromObjFile(gpa, std_init, "assets/Cube.obj");
+    const plane = try Mesh.fromObjFile(gpa, std_init, "assets/utah_teapot.obj");
+    // try self.meshes.append(gpa, cube);
+    try self.meshes.append(gpa, plane);
 
     // _ = std_init;
 
-    // const vertices = try gpa.alloc(Vec, 3);
-    // const tex_coords = try gpa.alloc(Vec, 3);
-    // const indices = try gpa.alloc(usize, 3);
+    // const vertices = try gpa.alloc(Vec, 4);
+    // const tex_coords = try gpa.alloc(Vec, 4);
+    // const indices = try gpa.alloc(usize, 6);
 
     // vertices[0] = zm.f32x4(-2, -2, 3, 1);
     // vertices[1] = zm.f32x4(-2, 2, 3, 1);
-    // vertices[2] = zm.f32x4(2, -2, 3, 1);
+    // vertices[2] = zm.f32x4(2, 2, 3, 1);
+    // vertices[3] = zm.f32x4(2, -2, 3, 1);
 
     // @memset(tex_coords[0..], .{ 0, 0, 0, 0 });
 
-    // for (0..3) |i|
-    //     indices[i] = i;
+    // indices[0] = 0;
+    // indices[1] = 1;
+    // indices[2] = 2;
 
-    // const mesh_2 = Mesh.init(vertices, tex_coords, indices, 0);
+    // indices[3] = 2;
+    // indices[4] = 3;
+    // indices[5] = 0;
+
+    // const mesh_2 = Mesh.init(vertices, tex_coords, indices);
     // try self.meshes.append(gpa, mesh_2);
 }
 fn loadTextures(self: *Self, gpa: Allocator) !void {

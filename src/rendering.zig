@@ -25,12 +25,7 @@ pub fn renderMesh(app: *App, mesh: *Mesh) void {
         const v1 = mesh.vertices[ind1];
         const v2 = mesh.vertices[ind2];
 
-        const t0 = mesh.tex_coords[ind0];
-        const t1 = mesh.tex_coords[ind1];
-        const t2 = mesh.tex_coords[ind2];
-
         const triangle = Triangle{ v0, v1, v2 };
-        const tex_coords = Triangle{ t0, t1, t2 };
 
         const pos_diff = app.camera.pos - math.getTriangleMiddle(triangle);
 
@@ -72,7 +67,7 @@ pub fn renderMesh(app: *App, mesh: *Mesh) void {
                             const screen_amount_3 = math.clipTriangleAgainstPlane(screen_clipped_2[n], screen_edges[3], &screen_clipped_3);
 
                             for (0..screen_amount_3) |o|
-                                renderTriangle(app, screen_clipped_3[o], tex_coords, mesh.tex_id);
+                                renderTriangle(app, screen_clipped_3[o]);
 
                             // this is ugly af
                             // i tried the stack approach but it didnt work
@@ -85,61 +80,98 @@ pub fn renderMesh(app: *App, mesh: *Mesh) void {
     }
 }
 /// triangle must already be screen space !!!!!!!!!!
-pub fn renderTriangle(app: *App, triangle: Triangle, tex_coords: Triangle, tex_id: usize) void {
-    const texture = app.textures.items[tex_id];
-    _ = texture;
+pub fn renderTriangle(app: *App, triangle: Triangle) void {
+    var x0: usize = @trunc((@as(f32, @floatFromInt(app.render_buffer.width - 1)) * triangle[0][0]));
+    var y0: usize = @trunc(@as(f32, @floatFromInt(app.render_buffer.height - 1)) - (@as(f32, @floatFromInt(app.render_buffer.height - 1)) * triangle[0][1]));
 
-    // TODO: rasterization
+    var x1: usize = @trunc((@as(f32, @floatFromInt(app.render_buffer.width - 1)) * triangle[1][0]));
+    var y1: usize = @trunc(@as(f32, @floatFromInt(app.render_buffer.height - 1)) - (@as(f32, @floatFromInt(app.render_buffer.height - 1)) * triangle[1][1]));
 
-    var x0: i32 = @trunc((@as(f32, @floatFromInt(app.render_buffer.width - 1)) * triangle[0][0]));
-    // var y0: i32 = @trunc((@as(f32, @floatFromInt(app.render_buffer.height - 1)) * triangle[0][1]));
-    var y0: i32 = @trunc(@as(f32, @floatFromInt(app.render_buffer.height - 1)) - (@as(f32, @floatFromInt(app.render_buffer.height - 1)) * triangle[0][1]));
+    var x2: usize = @trunc((@as(f32, @floatFromInt(app.render_buffer.width - 1)) * triangle[2][0]));
+    var y2: usize = @trunc(@as(f32, @floatFromInt(app.render_buffer.height - 1)) - (@as(f32, @floatFromInt(app.render_buffer.height - 1)) * triangle[2][1]));
 
-    var x1: i32 = @trunc((@as(f32, @floatFromInt(app.render_buffer.width - 1)) * triangle[1][0]));
-    // var y1: i32 = @trunc((@as(f32, @floatFromInt(app.render_buffer.height - 1)) * triangle[1][1]));
-    var y1: i32 = @trunc(@as(f32, @floatFromInt(app.render_buffer.height - 1)) - (@as(f32, @floatFromInt(app.render_buffer.height - 1)) * triangle[1][1]));
-
-    var x2: i32 = @trunc((@as(f32, @floatFromInt(app.render_buffer.width - 1)) * triangle[2][0]));
-    // var y2: i32 = @trunc((@as(f32, @floatFromInt(app.render_buffer.height - 1)) * triangle[2][1]));
-    var y2: i32 = @trunc(@as(f32, @floatFromInt(app.render_buffer.height - 1)) - (@as(f32, @floatFromInt(app.render_buffer.height - 1)) * triangle[2][1]));
-
-    if (x0 < 0 or y0 < 0 or x1 < 0 or y1 < 0 or x2 < 0 or y2 < 0)
-        std.debug.print("!!!!!!!!!!!!!!\n", .{});
-
-    var _u0 = tex_coords[0][0];
-    var _v0 = tex_coords[0][1];
-
-    var _u1 = tex_coords[1][0];
-    var _v1 = tex_coords[1][1];
-
-    var _u2 = tex_coords[2][0];
-    var _v2 = tex_coords[2][1];
+    // i love javidx9.
 
     if (y1 < y0) {
-        std.mem.swap(i32, &y0, &y1);
-        std.mem.swap(i32, &x0, &x1);
-
-        std.mem.swap(f32, &_u0, &_u1);
-        std.mem.swap(f32, &_v0, &_v1);
+        std.mem.swap(usize, &y0, &y1);
+        std.mem.swap(usize, &x0, &x1);
     }
 
     if (y2 < y0) {
-        std.mem.swap(i32, &y0, &y2);
-        std.mem.swap(i32, &x0, &x2);
-
-        std.mem.swap(f32, &_u0, &_u2);
-        std.mem.swap(f32, &_v0, &_v2);
+        std.mem.swap(usize, &y0, &y2);
+        std.mem.swap(usize, &x0, &x2);
     }
 
     if (y2 < y1) {
-        std.mem.swap(i32, &y1, &y2);
-        std.mem.swap(i32, &x1, &x2);
-
-        std.mem.swap(f32, &_u1, &_u2);
-        std.mem.swap(f32, &_v1, &_v2);
+        std.mem.swap(usize, &y1, &y2);
+        std.mem.swap(usize, &x1, &x2);
     }
 
-    // intcasts when i was testing it with usize
+    var dx0 = @as(i32, @intCast(x1)) - @as(i32, @intCast(x0));
+    var dy0 = y1 - y0;
+
+    const dx1 = @as(i32, @intCast(x2)) - @as(i32, @intCast(x0));
+    const dy1 = y2 - y0;
+
+    var dax_step: f32 = 0;
+    var dbx_step: f32 = 0;
+
+    if (dy0 != 0)
+        dax_step = @as(f32, @floatFromInt(dx0)) / @as(f32, @floatFromInt(dy0));
+
+    if (dy1 != 0)
+        dbx_step = @as(f32, @floatFromInt(dx1)) / @as(f32, @floatFromInt(dy1));
+
+    if (dy0 != 0) {
+        for (y0..y1) |y| {
+            var ax: usize = @trunc(@as(f32, @floatFromInt(x0)) + @as(f32, @floatFromInt(y - y0)) * dax_step);
+            var bx: usize = @trunc(@as(f32, @floatFromInt(x0)) + @as(f32, @floatFromInt(y - y0)) * dbx_step);
+
+            if (bx < ax)
+                std.mem.swap(usize, &ax, &bx);
+
+            const t_step = 1 / @as(f32, @floatFromInt(bx - ax));
+            var t: f32 = 0;
+
+            for (ax..bx) |x| {
+                app.render_buffer.setColor(x, y, .{ 255, 255, 255, 255 });
+
+                t += t_step;
+            }
+        }
+    }
+
+    dx0 = @as(i32, @intCast(x2)) - @as(i32, @intCast(x1));
+    dy0 = y2 - y1;
+
+    dax_step = 0;
+    dbx_step = 0;
+
+    if (dy0 != 0)
+        dax_step = @as(f32, @floatFromInt(dx0)) / @as(f32, @floatFromInt(dy0));
+
+    if (dy1 != 0)
+        dbx_step = @as(f32, @floatFromInt(dx1)) / @as(f32, @floatFromInt(dy1));
+
+    if (dy0 != 0) {
+        for (y1..y2) |y| {
+            var ax: usize = @trunc(@as(f32, @floatFromInt(x1)) + @as(f32, @floatFromInt(y - y1)) * dax_step);
+            var bx: usize = @trunc(@as(f32, @floatFromInt(x0)) + @as(f32, @floatFromInt(y - y0)) * dbx_step);
+
+            if (bx < ax)
+                std.mem.swap(usize, &ax, &bx);
+
+            const t_step = 1 / @as(f32, @floatFromInt(bx - ax));
+            var t: f32 = 0;
+
+            for (ax..bx) |x| {
+                app.render_buffer.setColor(x, y, .{ 255, 255, 255, 255 });
+
+                t += t_step;
+            }
+        }
+    }
+
     drawLine(app, @intCast(x0), @intCast(y0), @intCast(x1), @intCast(y1));
     drawLine(app, @intCast(x1), @intCast(y1), @intCast(x2), @intCast(y2));
     drawLine(app, @intCast(x2), @intCast(y2), @intCast(x0), @intCast(y0));
@@ -177,7 +209,7 @@ fn drawLineH(app: *App, x0: i32, y0: i32, x1: i32, y1: i32) void {
         const final_x = x0 + @as(i32, @intCast(x));
 
         if (final_x > 0 and final_x < app.render_buffer.width and y > 0 and y < app.render_buffer.height)
-            app.render_buffer.setColor(@intCast(final_x), @intCast(y), .{ 255, 255, 255, 255 });
+            app.render_buffer.setColor(@intCast(final_x), @intCast(y), .{ 255, 0, 0, 255 });
 
         if (p >= 0) {
             y += dir;
@@ -205,7 +237,7 @@ fn drawLineV(app: *App, x0: i32, y0: i32, x1: i32, y1: i32) void {
         const final_y = y0 + @as(i32, @intCast(y));
 
         if (x > 0 and x < app.render_buffer.width and final_y > 0 and final_y < app.render_buffer.height)
-            app.render_buffer.setColor(@intCast(x), @intCast(final_y), .{ 255, 255, 255, 255 });
+            app.render_buffer.setColor(@intCast(x), @intCast(final_y), .{ 255, 0, 0, 255 });
 
         if (p >= 0) {
             x += dir;
