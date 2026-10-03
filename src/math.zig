@@ -79,48 +79,56 @@ pub fn distToPlane(point: Vec, plane: Plane) f32 {
 }
 
 /// plane pos and normal
-pub fn getLinePlaneIntersection(line: Line, plane: Plane) Vec {
+pub fn getLinePlaneIntersection(line: Line, plane: Plane, t: *Vec) Vec {
     const dot = zm.dot3(plane[0], plane[1]);
     const ad = zm.dot3(line[0], plane[1]);
     const bd = zm.dot3(line[1], plane[1]);
-    const t = (dot - ad) / (bd - ad);
+    t.* = (dot - ad) / (bd - ad);
     const delta = line[1] - line[0];
-    const to_intersect = delta * t;
+    const to_intersect = delta * t.*;
     return line[0] + to_intersect;
 }
 
-pub fn clipTriangleAgainstPlane(in: Triangle, plane: Plane, out: []Triangle) usize {
+pub fn clipTriangleAgainstPlane(in_triangle: Triangle, in_tex_coords: Triangle, plane: Plane, out_triangle: []Triangle, out_tex_coords: []Triangle) usize {
     var points_inside: [3]Vec = undefined;
+    var tex_inside: [3]Vec = undefined;
     var inside_count: usize = 0;
 
     var points_outside: [3]Vec = undefined;
+    var tex_outside: [3]Vec = undefined;
     var outside_count: usize = 0;
 
-    const d0 = distToPlane(in[0], plane);
-    const d1 = distToPlane(in[1], plane);
-    const d2 = distToPlane(in[2], plane);
+    const d0 = distToPlane(in_triangle[0], plane);
+    const d1 = distToPlane(in_triangle[1], plane);
+    const d2 = distToPlane(in_triangle[2], plane);
 
     if (d0 >= 0) {
-        points_inside[inside_count] = in[0];
+        points_inside[inside_count] = in_triangle[0];
+        tex_inside[inside_count] = in_tex_coords[0];
         inside_count += 1;
     } else {
-        points_outside[outside_count] = in[0];
+        points_outside[outside_count] = in_triangle[0];
+        tex_outside[outside_count] = in_tex_coords[0];
         outside_count += 1;
     }
 
     if (d1 >= 0) {
-        points_inside[inside_count] = in[1];
+        points_inside[inside_count] = in_triangle[1];
+        tex_inside[inside_count] = in_tex_coords[1];
         inside_count += 1;
     } else {
-        points_outside[outside_count] = in[1];
+        points_outside[outside_count] = in_triangle[1];
+        tex_outside[outside_count] = in_tex_coords[1];
         outside_count += 1;
     }
 
     if (d2 >= 0) {
-        points_inside[inside_count] = in[2];
+        points_inside[inside_count] = in_triangle[2];
+        tex_inside[inside_count] = in_tex_coords[2];
         inside_count += 1;
     } else {
-        points_outside[outside_count] = in[2];
+        points_outside[outside_count] = in_triangle[2];
+        tex_outside[outside_count] = in_tex_coords[2];
         outside_count += 1;
     }
 
@@ -128,31 +136,48 @@ pub fn clipTriangleAgainstPlane(in: Triangle, plane: Plane, out: []Triangle) usi
         return 0;
 
     if (inside_count == 3) {
-        out[0] = in;
+        out_triangle[0] = in_triangle;
+        out_tex_coords[0] = in_tex_coords;
         return 1;
     }
 
     if (inside_count == 1 and outside_count == 2) {
-        out[0] = in;
+        var t = zm.f32x4s(0);
 
-        out[0][0] = points_inside[0];
-        out[0][1] = getLinePlaneIntersection(.{ points_inside[0], points_outside[0] }, plane);
-        out[0][2] = getLinePlaneIntersection(.{ points_inside[0], points_outside[1] }, plane);
+        out_triangle[0][0] = points_inside[0];
+        out_tex_coords[0][0] = tex_inside[0];
+
+        // SWITCH THE INSIDE WITH OUTSIDE IF IT WONT WORK !!!!!!!!!
+
+        out_triangle[0][1] = getLinePlaneIntersection(.{ points_inside[0], points_outside[0] }, plane, &t);
+        out_tex_coords[0][1] = zm.lerp(tex_inside[0], tex_outside[0], t[0]);
+
+        out_triangle[0][2] = getLinePlaneIntersection(.{ points_inside[0], points_outside[1] }, plane, &t);
+        out_tex_coords[0][2] = zm.lerp(tex_inside[0], tex_outside[1], t[0]);
 
         return 1;
     }
 
     if (inside_count == 2 and outside_count == 1) {
-        out[0] = in;
-        out[1] = in;
+        var t = zm.f32x4s(0);
 
-        out[0][0] = points_inside[0];
-        out[0][1] = points_inside[1];
-        out[0][2] = getLinePlaneIntersection(.{ points_inside[0], points_outside[0] }, plane);
+        out_triangle[0][0] = points_inside[0];
+        out_tex_coords[0][0] = tex_inside[0];
 
-        out[1][0] = points_inside[1];
-        out[1][1] = out[0][2];
-        out[1][2] = getLinePlaneIntersection(.{ points_inside[1], points_outside[0] }, plane);
+        out_triangle[0][1] = points_inside[1];
+        out_tex_coords[0][1] = tex_inside[1];
+
+        out_triangle[0][2] = getLinePlaneIntersection(.{ points_inside[0], points_outside[0] }, plane, &t);
+        out_tex_coords[0][2] = zm.lerp(tex_inside[0], tex_outside[0], t[0]);
+
+        out_triangle[1][0] = points_inside[1];
+        out_tex_coords[1][0] = tex_inside[1];
+
+        out_triangle[1][1] = out_triangle[0][2];
+        out_tex_coords[1][1] = out_tex_coords[0][2];
+
+        out_triangle[1][2] = getLinePlaneIntersection(.{ points_inside[1], points_outside[0] }, plane, &t);
+        out_tex_coords[1][2] = zm.lerp(tex_inside[1], tex_outside[0], t[0]);
 
         return 2;
     }

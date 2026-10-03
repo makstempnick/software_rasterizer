@@ -78,7 +78,7 @@ pub fn init(gpa: Allocator) !Self {
 
     const input = try Input.init(gpa);
 
-    const cam_pos = f32x4(0, 5, -5, 1);
+    const cam_pos = f32x4(0, 0, -5, 1);
     const cam_rot = zm.quatFromMat(zm.lookToLh(cam_pos, math.forward, math.up));
     const camera = Camera.init(cam_pos, cam_rot, math.quart_rot, 0.1, 100.0, f32x4s(6), f32x4s(1));
 
@@ -142,36 +142,41 @@ pub fn start(self: *Self, std_init: std.process.Init, gpa: Allocator) !void {
 }
 fn loadMeshes(self: *Self, std_init: std.process.Init, gpa: Allocator) !void {
     // const cube = try Mesh.fromObjFile(gpa, std_init, "assets/Cube.obj");
-    const plane = try Mesh.fromObjFile(gpa, std_init, "assets/utah_teapot.obj");
+    const teapot = try Mesh.fromObjFile(gpa, std_init, "assets/utah_teapot.obj");
     // try self.meshes.append(gpa, cube);
-    try self.meshes.append(gpa, plane);
+    // try self.meshes.append(gpa, teapot);
 
     // _ = std_init;
 
-    // const vertices = try gpa.alloc(Vec, 4);
-    // const tex_coords = try gpa.alloc(Vec, 4);
-    // const indices = try gpa.alloc(usize, 6);
+    const vertices = try gpa.alloc(Vec, 4);
+    const tex_coords = try gpa.alloc(Vec, 4);
+    const indices = try gpa.alloc(usize, 6);
 
-    // vertices[0] = zm.f32x4(-2, -2, 3, 1);
-    // vertices[1] = zm.f32x4(-2, 2, 3, 1);
-    // vertices[2] = zm.f32x4(2, 2, 3, 1);
-    // vertices[3] = zm.f32x4(2, -2, 3, 1);
+    vertices[0] = zm.f32x4(-2, 5, 3, 1);
+    vertices[1] = zm.f32x4(-2, 9, 3, 1);
+    vertices[2] = zm.f32x4(2, 9, 3, 1);
+    vertices[3] = zm.f32x4(2, 5, 3, 1);
 
-    // @memset(tex_coords[0..], .{ 0, 0, 0, 0 });
+    tex_coords[0] = zm.f32x4(0, 1, 0, 1);
+    tex_coords[1] = zm.f32x4(0, 0, 0, 1);
+    tex_coords[2] = zm.f32x4(1, 0, 0, 1);
+    tex_coords[3] = zm.f32x4(1, 1, 0, 1);
 
-    // indices[0] = 0;
-    // indices[1] = 1;
-    // indices[2] = 2;
+    indices[0] = 0;
+    indices[1] = 1;
+    indices[2] = 2;
 
-    // indices[3] = 2;
-    // indices[4] = 3;
-    // indices[5] = 0;
+    indices[3] = 2;
+    indices[4] = 3;
+    indices[5] = 0;
 
-    // const mesh_2 = Mesh.init(vertices, tex_coords, indices);
-    // try self.meshes.append(gpa, mesh_2);
+    const mesh_2 = Mesh.init(vertices, tex_coords, indices);
+    try self.meshes.append(gpa, mesh_2);
+
+    try self.meshes.append(gpa, teapot);
 }
 fn loadTextures(self: *Self, gpa: Allocator) !void {
-    const wood = try loadTexture("assets/wood.png", gpa);
+    const wood = try loadTexture("assets/chociaż.png", gpa);
     try self.textures.append(gpa, wood);
 }
 fn gameLoop(self: *Self) void {
@@ -189,7 +194,7 @@ fn gameLoop(self: *Self) void {
         self.render_buffer.fill(.{ 0, 0, 0, 255 });
 
         for (self.meshes.items) |*mesh|
-            rendering.renderMesh(self, mesh);
+            rendering.renderMesh(self, mesh, 0);
 
         rendering.display(self) catch
             std.debug.print("cant display!!!!!!!!!", .{});
