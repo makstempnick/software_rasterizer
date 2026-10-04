@@ -35,6 +35,7 @@ thread_states: []bool,
 
 render_buffer: Buffer,
 display_buffer: Buffer,
+depth_buffer: []f32,
 
 render_aspect: f32,
 display_aspect: f32,
@@ -73,6 +74,8 @@ pub fn init(gpa: Allocator) !Self {
     const display_buffer = Buffer.from(win_width, win_height, pixels);
     display_buffer.fill(.{ 0, 0, 0, 255 });
 
+    const depth_buffer = try gpa.alloc(f32, render_buffer.width * render_buffer.height);
+
     const render_aspect = @as(f32, @floatFromInt(render_buffer.height)) / @as(f32, @floatFromInt(render_buffer.width));
     const display_aspect = @as(f32, @floatFromInt(display_buffer.height)) / @as(f32, @floatFromInt(display_buffer.width));
 
@@ -94,6 +97,7 @@ pub fn init(gpa: Allocator) !Self {
 
         .render_buffer = render_buffer,
         .display_buffer = display_buffer,
+        .depth_buffer = depth_buffer,
 
         .render_aspect = render_aspect,
         .display_aspect = display_aspect,
@@ -115,6 +119,7 @@ pub fn deinit(self: *Self, gpa: Allocator) void {
     gpa.free(self.thread_states);
 
     self.render_buffer.deinit(gpa);
+    gpa.free(self.depth_buffer);
 
     self.input.deinit(gpa);
 
@@ -190,6 +195,7 @@ fn gameLoop(self: *Self) void {
         self.camera.rotate(&self.input, self.dt);
 
         self.render_buffer.fill(.{ 0, 0, 0, 255 });
+        @memset(self.depth_buffer[0..], 0);
 
         for (self.meshes.items) |*mesh|
             rendering.renderMesh(self, mesh, 0);

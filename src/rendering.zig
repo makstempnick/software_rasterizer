@@ -60,8 +60,6 @@ pub fn renderMesh(app: *App, mesh: *Mesh, tex_id: usize) void {
                     depth_tex_1[k][p][3] = 1 / depth_clipped_1[k][p][2];
                 }
 
-                // std.debug.print("\n", .{});
-
                 const screen_proj = math.screenProjTriangle(depth_clipped_1[k]);
 
                 var screen_clipped_0: [2]Triangle = undefined;
@@ -231,8 +229,14 @@ pub fn renderTriangle(app: *App, triangle: Triangle, tex_coords: Triangle, w: [3
                 tex_v = zm.lerpV(tex_v0, tex_v1, t);
                 tex_w = zm.lerpV(tex_w0, tex_w1, t);
 
-                if (texture.sample(tex_u / tex_w, tex_v / tex_w)) |color|
-                    app.render_buffer.setColor(x, y, color);
+                const idx = y * app.render_buffer.width + x;
+
+                if (app.depth_buffer[idx] < tex_w) {
+                    if (texture.sample(tex_u / tex_w, tex_v / tex_w)) |color| {
+                        app.render_buffer.setColor(x, y, color);
+                        app.depth_buffer[idx] = tex_w;
+                    }
+                }
 
                 t += t_step;
             }
@@ -297,8 +301,14 @@ pub fn renderTriangle(app: *App, triangle: Triangle, tex_coords: Triangle, w: [3
                 tex_v = zm.lerpV(tex_v0, tex_v1, t);
                 tex_w = zm.lerpV(tex_w0, tex_w1, t);
 
-                if (texture.sample(tex_u / tex_w, tex_v / tex_w)) |color|
-                    app.render_buffer.setColor(x, y, color);
+                const idx = y * app.render_buffer.width + x;
+
+                if (app.depth_buffer[idx] < tex_w) {
+                    if (texture.sample(tex_u / tex_w, tex_v / tex_w)) |color| {
+                        app.render_buffer.setColor(x, y, color);
+                        app.depth_buffer[idx] = tex_w;
+                    }
+                }
 
                 t += t_step;
             }
