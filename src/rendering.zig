@@ -39,14 +39,14 @@ pub fn renderMesh(app: *App, mesh: *Mesh, tex_id: usize) void {
         if (dot[0] < 0)
             continue;
 
-        const projected = math.localCamProjTriangle(triangle, app.render_aspect, &app.camera);
+        const cam_proj = math.localCamProjTriangle(triangle, app.render_aspect, &app.camera);
 
         const near_plane = app.camera.getNearPlane();
         const far_plane = app.camera.getFarPlane();
 
         var depth_clipped_0: [2]Triangle = undefined;
         var depth_tex_0: [2]Triangle = undefined;
-        const depth_amount_0 = math.clipTriangleAgainstPlane(projected, tex_coords, near_plane, &depth_clipped_0, &depth_tex_0);
+        const depth_amount_0 = math.clipTriangleAgainstPlane(cam_proj, tex_coords, near_plane, &depth_clipped_0, &depth_tex_0);
 
         for (0..depth_amount_0) |j| {
             var depth_clipped_1: [2]Triangle = undefined;
@@ -54,10 +54,20 @@ pub fn renderMesh(app: *App, mesh: *Mesh, tex_id: usize) void {
             const depth_amount_1 = math.clipTriangleAgainstPlane(depth_clipped_0[j], depth_tex_0[j], far_plane, &depth_clipped_1, &depth_tex_1);
 
             for (0..depth_amount_1) |k| {
+                for (0..3) |p| {
+                    depth_tex_1[k][p][0] /= depth_clipped_1[k][p][2];
+                    depth_tex_1[k][p][1] /= depth_clipped_1[k][p][2];
+                    depth_tex_1[k][p][3] = 1 / depth_clipped_1[k][p][2];
+                }
+
+                // std.debug.print("\n", .{});
+
+                const screen_proj = math.screenProjTriangle(depth_clipped_1[k]);
+
                 var screen_clipped_0: [2]Triangle = undefined;
                 var screen_tex_0: [2]Triangle = undefined;
 
-                const screen_amount_0 = math.clipTriangleAgainstPlane(math.screenProjTriangle(depth_clipped_1[k]), depth_tex_1[k], screen_edges[0], &screen_clipped_0, &screen_tex_0);
+                const screen_amount_0 = math.clipTriangleAgainstPlane(screen_proj, depth_tex_1[k], screen_edges[0], &screen_clipped_0, &screen_tex_0);
 
                 for (0..screen_amount_0) |l| {
                     var screen_clipped_1: [2]Triangle = undefined;
@@ -77,8 +87,11 @@ pub fn renderMesh(app: *App, mesh: *Mesh, tex_id: usize) void {
 
                             const screen_amount_3 = math.clipTriangleAgainstPlane(screen_clipped_2[n], screen_tex_2[n], screen_edges[3], &screen_clipped_3, &screen_tex_3);
 
-                            for (0..screen_amount_3) |o|
-                                renderTriangle(app, screen_clipped_3[o], screen_tex_3[o], tex_id);
+                            for (0..screen_amount_3) |o| {
+                                const w = [3]f32{ screen_tex_3[o][0][3], screen_tex_3[o][1][3], screen_tex_3[o][2][3] };
+
+                                renderTriangle(app, screen_clipped_3[o], screen_tex_3[o], w, tex_id);
+                            }
 
                             // this is ugly af
                             // i tried the stack approach but it didnt work
@@ -91,7 +104,7 @@ pub fn renderMesh(app: *App, mesh: *Mesh, tex_id: usize) void {
     }
 }
 /// triangle must already be screen space !!!!!!!!!!
-pub fn renderTriangle(app: *App, triangle: Triangle, tex_coords: Triangle, tex_id: usize) void {
+pub fn renderTriangle(app: *App, triangle: Triangle, tex_coords: Triangle, w: [3]f32, tex_id: usize) void {
     const texture = &app.textures.items[tex_id];
 
     var x0: usize = @trunc((@as(f32, @floatFromInt(app.render_buffer.width - 1)) * triangle[0][0]));
@@ -105,12 +118,15 @@ pub fn renderTriangle(app: *App, triangle: Triangle, tex_coords: Triangle, tex_i
 
     var _u0 = tex_coords[0][0];
     var _v0 = tex_coords[0][1];
+    var _w0 = w[0];
 
     var _u1 = tex_coords[1][0];
     var _v1 = tex_coords[1][1];
+    var _w1 = w[1];
 
     var _u2 = tex_coords[2][0];
     var _v2 = tex_coords[2][1];
+    var _w2 = w[2];
 
     // i love javidx9.
 
@@ -120,6 +136,7 @@ pub fn renderTriangle(app: *App, triangle: Triangle, tex_coords: Triangle, tex_i
 
         std.mem.swap(f32, &_u0, &_u1);
         std.mem.swap(f32, &_v0, &_v1);
+        std.mem.swap(f32, &_w0, &_w1);
     }
 
     if (y2 < y0) {
@@ -128,6 +145,7 @@ pub fn renderTriangle(app: *App, triangle: Triangle, tex_coords: Triangle, tex_i
 
         std.mem.swap(f32, &_u0, &_u2);
         std.mem.swap(f32, &_v0, &_v2);
+        std.mem.swap(f32, &_w0, &_w2);
     }
 
     if (y2 < y1) {
@@ -136,6 +154,7 @@ pub fn renderTriangle(app: *App, triangle: Triangle, tex_coords: Triangle, tex_i
 
         std.mem.swap(f32, &_u1, &_u2);
         std.mem.swap(f32, &_v1, &_v2);
+        std.mem.swap(f32, &_w1, &_w2);
     }
 
     var dx0 = @as(i32, @intCast(x1)) - @as(i32, @intCast(x0));
@@ -143,27 +162,32 @@ pub fn renderTriangle(app: *App, triangle: Triangle, tex_coords: Triangle, tex_i
 
     var du0 = _u1 - _u0;
     var dv0 = _v1 - _v0;
+    var dw0 = _w1 - _w0;
 
     const dx1 = @as(i32, @intCast(x2)) - @as(i32, @intCast(x0));
     const dy1 = y2 - y0;
 
     const du1 = _u2 - _u0;
     const dv1 = _v2 - _v0;
+    const dw1 = _w2 - _w0;
 
     var dax_step: f32 = 0;
     var dbx_step: f32 = 0;
 
     var du0_step: f32 = 0;
     var dv0_step: f32 = 0;
+    var dw0_step: f32 = 0;
 
     var du1_step: f32 = 0;
     var dv1_step: f32 = 0;
+    var dw1_step: f32 = 0;
 
     if (dy0 != 0) {
         dax_step = @as(f32, @floatFromInt(dx0)) / @as(f32, @floatFromInt(dy0));
 
         du0_step = du0 / @as(f32, @floatFromInt(dy0));
         dv0_step = dv0 / @as(f32, @floatFromInt(dy0));
+        dw0_step = dw0 / @as(f32, @floatFromInt(dy0));
     }
 
     if (dy1 != 0) {
@@ -171,6 +195,7 @@ pub fn renderTriangle(app: *App, triangle: Triangle, tex_coords: Triangle, tex_i
 
         du1_step = du1 / @as(f32, @floatFromInt(dy1));
         dv1_step = dv1 / @as(f32, @floatFromInt(dy1));
+        dw1_step = dw1 / @as(f32, @floatFromInt(dy1));
     }
 
     if (dy0 != 0) {
@@ -180,15 +205,18 @@ pub fn renderTriangle(app: *App, triangle: Triangle, tex_coords: Triangle, tex_i
 
             var tex_u0 = _u0 + @as(f32, @floatFromInt(y - y0)) * du0_step;
             var tex_v0 = _v0 + @as(f32, @floatFromInt(y - y0)) * dv0_step;
+            var tex_w0 = _w0 + @as(f32, @floatFromInt(y - y0)) * dw0_step;
 
             var tex_u1 = _u0 + @as(f32, @floatFromInt(y - y0)) * du1_step;
             var tex_v1 = _v0 + @as(f32, @floatFromInt(y - y0)) * dv1_step;
+            var tex_w1 = _w0 + @as(f32, @floatFromInt(y - y0)) * dw1_step;
 
             if (bx < ax) {
                 std.mem.swap(usize, &ax, &bx);
 
                 std.mem.swap(f32, &tex_u0, &tex_u1);
                 std.mem.swap(f32, &tex_v0, &tex_v1);
+                std.mem.swap(f32, &tex_w0, &tex_w1);
             }
 
             const t_step = 1 / @as(f32, @floatFromInt(bx - ax));
@@ -196,12 +224,14 @@ pub fn renderTriangle(app: *App, triangle: Triangle, tex_coords: Triangle, tex_i
 
             var tex_u = tex_u0;
             var tex_v = tex_v0;
+            var tex_w = tex_w0;
 
             for (ax..bx) |x| {
                 tex_u = zm.lerpV(tex_u0, tex_u1, t);
                 tex_v = zm.lerpV(tex_v0, tex_v1, t);
+                tex_w = zm.lerpV(tex_w0, tex_w1, t);
 
-                if (texture.sample(tex_u, tex_v)) |color|
+                if (texture.sample(tex_u / tex_w, tex_v / tex_w)) |color|
                     app.render_buffer.setColor(x, y, color);
 
                 t += t_step;
@@ -214,18 +244,21 @@ pub fn renderTriangle(app: *App, triangle: Triangle, tex_coords: Triangle, tex_i
 
     du0 = _u2 - _u1;
     dv0 = _v2 - _v1;
+    dw0 = _w2 - _w1;
 
     dax_step = 0;
     dbx_step = 0;
 
     du0_step = 0;
     dv0_step = 0;
+    dw0_step = 0;
 
     if (dy0 != 0) {
         dax_step = @as(f32, @floatFromInt(dx0)) / @as(f32, @floatFromInt(dy0));
 
         du0_step = du0 / @as(f32, @floatFromInt(dy0));
         dv0_step = dv0 / @as(f32, @floatFromInt(dy0));
+        dw0_step = dw0 / @as(f32, @floatFromInt(dy0));
     }
 
     if (dy1 != 0)
@@ -238,15 +271,18 @@ pub fn renderTriangle(app: *App, triangle: Triangle, tex_coords: Triangle, tex_i
 
             var tex_u0 = _u1 + @as(f32, @floatFromInt(y - y1)) * du0_step;
             var tex_v0 = _v1 + @as(f32, @floatFromInt(y - y1)) * dv0_step;
+            var tex_w0 = _w1 + @as(f32, @floatFromInt(y - y1)) * dw0_step;
 
             var tex_u1 = _u0 + @as(f32, @floatFromInt(y - y0)) * du1_step;
             var tex_v1 = _v0 + @as(f32, @floatFromInt(y - y0)) * dv1_step;
+            var tex_w1 = _w0 + @as(f32, @floatFromInt(y - y0)) * dw1_step;
 
             if (bx < ax) {
                 std.mem.swap(usize, &ax, &bx);
 
                 std.mem.swap(f32, &tex_u0, &tex_u1);
                 std.mem.swap(f32, &tex_v0, &tex_v1);
+                std.mem.swap(f32, &tex_w0, &tex_w1);
             }
 
             const t_step = 1 / @as(f32, @floatFromInt(bx - ax));
@@ -254,12 +290,14 @@ pub fn renderTriangle(app: *App, triangle: Triangle, tex_coords: Triangle, tex_i
 
             var tex_u = tex_u0;
             var tex_v = tex_v0;
+            var tex_w = tex_w0;
 
             for (ax..bx) |x| {
                 tex_u = zm.lerpV(tex_u0, tex_u1, t);
                 tex_v = zm.lerpV(tex_v0, tex_v1, t);
+                tex_w = zm.lerpV(tex_w0, tex_w1, t);
 
-                if (texture.sample(tex_u, tex_v)) |color|
+                if (texture.sample(tex_u / tex_w, tex_v / tex_w)) |color|
                     app.render_buffer.setColor(x, y, color);
 
                 t += t_step;
@@ -304,7 +342,7 @@ fn drawLineH(app: *App, x0: i32, y0: i32, x1: i32, y1: i32) void {
         const final_x = x0 + @as(i32, @intCast(x));
 
         if (final_x > 0 and final_x < app.render_buffer.width and y > 0 and y < app.render_buffer.height)
-            app.render_buffer.setColor(@intCast(final_x), @intCast(y), .{ 255, 0, 0, 255 });
+            app.render_buffer.setColor(@intCast(final_x), @intCast(y), .{ 0, 0, 0, 255 });
 
         if (p >= 0) {
             y += dir;
@@ -332,7 +370,7 @@ fn drawLineV(app: *App, x0: i32, y0: i32, x1: i32, y1: i32) void {
         const final_y = y0 + @as(i32, @intCast(y));
 
         if (x > 0 and x < app.render_buffer.width and final_y > 0 and final_y < app.render_buffer.height)
-            app.render_buffer.setColor(@intCast(x), @intCast(final_y), .{ 255, 0, 0, 255 });
+            app.render_buffer.setColor(@intCast(x), @intCast(final_y), .{ 0, 0, 0, 255 });
 
         if (p >= 0) {
             x += dir;

@@ -67,7 +67,7 @@ pub fn init(gpa: Allocator) !Self {
     const core_count = try std.Thread.getCpuCount();
     const thread_states = try gpa.alloc(bool, core_count);
 
-    const render_buffer = try Buffer.init(gpa, 200, 200);
+    const render_buffer = try Buffer.init(gpa, 400, 400);
     render_buffer.fill(.{ 0, 0, 0, 255 });
 
     const display_buffer = Buffer.from(win_width, win_height, pixels);
@@ -144,39 +144,37 @@ fn loadMeshes(self: *Self, std_init: std.process.Init, gpa: Allocator) !void {
     // const cube = try Mesh.fromObjFile(gpa, std_init, "assets/Cube.obj");
     const teapot = try Mesh.fromObjFile(gpa, std_init, "assets/utah_teapot.obj");
     // try self.meshes.append(gpa, cube);
-    // try self.meshes.append(gpa, teapot);
-
-    // _ = std_init;
-
-    const vertices = try gpa.alloc(Vec, 4);
-    const tex_coords = try gpa.alloc(Vec, 4);
-    const indices = try gpa.alloc(usize, 6);
-
-    vertices[0] = zm.f32x4(-2, 5, 3, 1);
-    vertices[1] = zm.f32x4(-2, 9, 3, 1);
-    vertices[2] = zm.f32x4(2, 9, 3, 1);
-    vertices[3] = zm.f32x4(2, 5, 3, 1);
-
-    tex_coords[0] = zm.f32x4(0, 1, 0, 1);
-    tex_coords[1] = zm.f32x4(0, 0, 0, 1);
-    tex_coords[2] = zm.f32x4(1, 0, 0, 1);
-    tex_coords[3] = zm.f32x4(1, 1, 0, 1);
-
-    indices[0] = 0;
-    indices[1] = 1;
-    indices[2] = 2;
-
-    indices[3] = 2;
-    indices[4] = 3;
-    indices[5] = 0;
-
-    const mesh_2 = Mesh.init(vertices, tex_coords, indices);
-    try self.meshes.append(gpa, mesh_2);
-
     try self.meshes.append(gpa, teapot);
+
+    //     _ = std_init;
+
+    //     const vertices = try gpa.alloc(Vec, 4);
+    //     const tex_coords = try gpa.alloc(Vec, 4);
+    //     const indices = try gpa.alloc(usize, 6);
+
+    //     vertices[0] = zm.f32x4(-2, -2, 3, 1);
+    //     vertices[1] = zm.f32x4(-2, 2, 3, 1);
+    //     vertices[2] = zm.f32x4(2, 2, 3, 1);
+    //     vertices[3] = zm.f32x4(2, -2, 3, 1);
+
+    //     tex_coords[0] = zm.f32x4(0, 1, 0, 1);
+    //     tex_coords[1] = zm.f32x4(0, 0, 0, 1);
+    //     tex_coords[2] = zm.f32x4(1, 0, 0, 1);
+    //     tex_coords[3] = zm.f32x4(1, 1, 0, 1);
+
+    //     indices[0] = 0;
+    //     indices[1] = 1;
+    //     indices[2] = 2;
+
+    //     indices[3] = 2;
+    //     indices[4] = 3;
+    //     indices[5] = 0;
+
+    //     const mesh_2 = Mesh.init(vertices, tex_coords, indices);
+    //     try self.meshes.append(gpa, mesh_2);
 }
 fn loadTextures(self: *Self, gpa: Allocator) !void {
-    const wood = try loadTexture("assets/chociaż.png", gpa);
+    const wood = try loadTexture("assets/Rock060_1K-JPG_Color.png", gpa);
     try self.textures.append(gpa, wood);
 }
 fn gameLoop(self: *Self) void {

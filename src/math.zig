@@ -138,6 +138,7 @@ pub fn clipTriangleAgainstPlane(in_triangle: Triangle, in_tex_coords: Triangle, 
     if (inside_count == 3) {
         out_triangle[0] = in_triangle;
         out_tex_coords[0] = in_tex_coords;
+
         return 1;
     }
 
@@ -146,8 +147,6 @@ pub fn clipTriangleAgainstPlane(in_triangle: Triangle, in_tex_coords: Triangle, 
 
         out_triangle[0][0] = points_inside[0];
         out_tex_coords[0][0] = tex_inside[0];
-
-        // SWITCH THE INSIDE WITH OUTSIDE IF IT WONT WORK !!!!!!!!!
 
         out_triangle[0][1] = getLinePlaneIntersection(.{ points_inside[0], points_outside[0] }, plane, &t);
         out_tex_coords[0][1] = zm.lerp(tex_inside[0], tex_outside[0], t[0]);

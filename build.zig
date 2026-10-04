@@ -32,7 +32,7 @@ pub fn build(b: *std.Build) void {
                 .target = target,
             }) });
 
-            // tests.root_module.addImport("zm", zmath_dep.module("root"));
+            tests.root_module.addImport("zm", zmath_dep.module("root"));
 
             const run_arti = b.addRunArtifact(exe);
             const run_step = b.step("run", "Run the executable");
