@@ -2,45 +2,45 @@ const std = @import("std");
 
 pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{ .preferred_optimize_mode = .ReleaseFast });
+    const target = b.standardTargetOptions(.{});
 
-    const targets = [_]std.Build.ResolvedTarget{
-        b.graph.host, b.resolveTargetQuery(.{ .os_tag = .windows }),
-    };
+    const sdl_dep = b.dependency("sdl3", .{ .optimize = optimize, .target = target, .ext_image = true });
+    const utils_dep = b.dependency("buffer_utils", .{ .optimize = optimize });
+    const zmath_dep = b.dependency("zmath", .{ .optimize = optimize });
 
-    for (targets) |target| {
-        const exe = b.addExecutable(.{ .name = "software_rasterizer", .root_module = b.createModule(.{
-            .root_source_file = b.path("src/main.zig"),
+    const root = b.createModule(.{
+        .root_source_file = b.path("src/root.zig"),
+        .optimize = optimize,
+        .target = target,
+
+        .imports = &.{
+            .{ .name = "sdl", .module = sdl_dep.module("sdl3") },
+            .{ .name = "utils", .module = utils_dep.module("buffer_utils") },
+            .{ .name = "zm", .module = zmath_dep.module("root") },
+        },
+    });
+
+    const run_step = b.step("run", "Run the example.");
+
+    if (b.option([]const u8, "example", "Which example to run?")) |name| {
+        const example = b.addExecutable(.{ .name = name, .root_module = b.createModule(.{
+            .root_source_file = b.path(b.fmt("examples/{s}/main.zig", .{name})),
             .optimize = optimize,
             .target = target,
+            .imports = &.{
+                .{ .name = "renderer", .module = root },
+                .{ .name = "sdl", .module = sdl_dep.module("sdl3") },
+                .{ .name = "utils", .module = utils_dep.module("buffer_utils") },
+                .{ .name = "zm", .module = zmath_dep.module("root") },
+            },
         }) });
 
-        b.installArtifact(exe);
+        // const exe_arti = b.addInstallArtifact(example, .{ .dest_dir = .{ .override = .{ .custom = name } } });
+        // b.installDirectory(.{ .install_dir = .{ .custom = name }, .install_subdir = "assets", .source_dir = b.path(b.fmt("examples/{s}/assets", .{name})) });
 
-        const sdl_dep = b.dependency("sdl3", .{ .optimize = optimize, .target = target, .ext_image = true });
-        exe.root_module.addImport("sdl", sdl_dep.module("sdl3"));
+        const run_arti = b.addRunArtifact(example);
+        run_arti.addDirectoryArg2(b.path(b.fmt("examples/{s}/assets", .{name})), .{});
 
-        const utils_dep = b.dependency("pixel_utils", .{ .optimize = optimize });
-        exe.root_module.addImport("utils", utils_dep.module("pixel_utils"));
-
-        const zmath_dep = b.dependency("zmath", .{ .optimize = optimize });
-        exe.root_module.addImport("zm", zmath_dep.module("root"));
-
-        if (target.query.os_tag == b.graph.host.query.os_tag) {
-            const tests = b.addTest(.{ .name = "tests", .root_module = b.createModule(.{
-                .root_source_file = b.path("src/tests.zig"),
-                .optimize = optimize,
-                .target = target,
-            }) });
-
-            tests.root_module.addImport("zm", zmath_dep.module("root"));
-
-            const run_arti = b.addRunArtifact(exe);
-            const run_step = b.step("run", "Run the executable");
-            run_step.dependOn(&run_arti.step);
-
-            const test_arti = b.addRunArtifact(tests);
-            const test_step = b.step("test", "Run the tests");
-            test_step.dependOn(&test_arti.step);
-        }
+        run_step.dependOn(&run_arti.step);
     }
 }

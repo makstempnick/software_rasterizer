@@ -1,20 +1,26 @@
 .{
     .name = .software_rasterizer,
-    .version = "0.16.0",
+    .version = "0.0.1",
+    .minimum_zig_version = "0.17.0",
     .dependencies = .{
         .sdl3 = .{
-            .url = "git+https://codeberg.org/7Games/zig-sdl3?ref=v0.2.2#83c694024f23cbacfa36fcd8fca1c57d4957203e",
-            .hash = "sdl3-0.2.2-NmT1Q-2jKQBa4uSXUwuVwdmXpXe-eYwim7Wkyx531v6O",
-        },
-        .pixel_utils = .{
-            .url = "git+https://github.com/makstempnick/pixel_utils?ref=main#5829302d599fc238caa85cb4860115352a5b7385",
-            .hash = "pixel_utils-0.0.1-89t-odIfAAB3TM_DjUOdtHGLrRUS73bi-8KGlO9VlQYS",
+            .url = "git+https://codeberg.org/7Games/zig-sdl3?ref=v0.2.3#666331118c8f7d8a03ea633d79a343c34dc32b84",
+            .hash = "sdl3-0.2.3-NmT1Q1QDKgACd5t_PNSG08lcOCX25qaRYZjUmXPTVBY_",
         },
         .zmath = .{
-            .url = "git+https://github.com/zig-gamedev/zmath.git#9e42b04a24c970a297b365f3d3022f92dbf3219d",
-            .hash = "zmath-0.11.0-dev-wjwivTwtAwDOjG2_KGP-HLtHrONfsFfHttalmxFAGVAK",
+            .url = "git+https://github.com/zig-gamedev/zmath.git#43250209495cfb8a1a8d56c2977c563139c6eafe",
+            .hash = "zmath-0.11.0-dev-wjwivaAtAwA7W0_rRXAqdwjWGigw6_pxgsYtAdjUbqUj",
+        },
+        .buffer_utils = .{
+            .url = "git+https://github.com/makstempnick/buffer_utils#5da8d9134e88907deafc698c4e094491bddde995",
+            .hash = "buffer_utils-0.0.2-cnezvlgbAACe9t1uXYnY-beKY0U3PXB0H16P39CS8wgh",
         },
     },
-    .paths = .{""},
     .fingerprint = 0x238c883eb9050022,
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "examples",
+    },
 }
